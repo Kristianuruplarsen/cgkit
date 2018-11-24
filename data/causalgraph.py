@@ -14,10 +14,13 @@ class cgraph:
                 density = 1,
                 edges = "random",
                 parameter_space = lambda:  np.random.randint(1,6),
+                noise_space = lambda nobs: np.random.normal(size = nobs),
                 weights = None):
 
         self.nvars = int(number_of_X)
+
         self.parameter_space = parameter_space
+        self.noise_space = noise_space
 
         if self.nvars <= 0:
             raise ValueError("input number_of_X must be a positive integer")
@@ -96,7 +99,7 @@ class cgraph:
             for par in [p for p in done if not done[p]]:
                 # Independent variables
                 if len(self.parameters[par]) == 0 and not done[par]:
-                    X[:,par] = np.random.normal(size = nobs)
+                    X[:,par] = self.noise_space(nobs)
                     done[par] = True
 
                 # If all ancestors are made
@@ -104,10 +107,10 @@ class cgraph:
 
                     for var in self.parameters[par]:
                         if par == 'Y':
-                            X[:,-1] += self.parameters[par][var] * X[:,var]
+                            X[:,-1] += self.parameters[par][var] * X[:,var] + self.noise_space(nobs)
                             done[par] = True
                         else:
-                            X[:,par] += self.parameters[par][var]*X[:,var]
+                            X[:,par] += self.parameters[par][var]*X[:,var] + self.noise_space(nobs)
                             done[par] = True
         self.X = X
         return self.X

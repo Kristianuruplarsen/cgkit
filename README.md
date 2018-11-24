@@ -33,4 +33,8 @@ We can simulate a row-column dataset with
 ```python
 C.yield_dataset(nobs = 1000)
 ```
-which will give a numpy array with data.
+which will give a numpy array with data which looks like:
+
+<p align="center">
+<img src="figs/pairs.png">
+</p>

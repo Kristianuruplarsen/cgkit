@@ -10,12 +10,12 @@ import seaborn as sns
 from data.causalgraph import cgraph
 
 
-C = cgraph(4, density =1)
+C = cgraph(5, density =0.5)
 C.draw_graph()
 plt.savefig("figs/examplegraph.png")
 
-C.parameters
+raw = C.yield_dataset(1000)
 
-C.yield_dataset(1000)
-
-lol = pd.DataFrame(C.yield_dataset(1000))
+df = pd.DataFrame(raw)
+sns.pairplot(df)
+plt.savefig('pairs.png')
