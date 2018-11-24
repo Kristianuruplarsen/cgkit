@@ -15,8 +15,15 @@ class cgraph:
                 edges = "random",
                 weights = None):
 
-        self.nvars = number_of_X
-        self.ncon = np.floor(density*(self.nvars)*(self.nvars-1))
+        self.nvars = int(number_of_X)
+
+        if self.nvars <= 0:
+            raise ValueError("input number_of_X must be a positive integer")
+
+        if not 0 < density <= 1:
+            raise ValueError("Density must be in the interval [0,1]")
+
+        self.ncon = np.ceil(density* ((self.nvars + 1)*(self.nvars))/2)
         self.nodelist = [i for i in range(self.nvars)] + ['Y']
         self.G = nx.DiGraph()
 
@@ -31,6 +38,7 @@ class cgraph:
             self.edges,self.weights = edges, weights
             for e,c in zip(self.edges, self.weights):
                 self.G.add_edge(*e, weight = c)
+
 
     def random_edges(self):
         """ Randomly constructs causal edges between variables
@@ -52,6 +60,7 @@ class cgraph:
             e.append((begin, end))
             c.append(corr)
         return e,c
+
 
     def draw_graph(self):
         """ Plot the simulated graph
