@@ -72,3 +72,9 @@ class cgraph:
         """
         fig = nx.draw(self.G, with_labels = True, pos = nx.circular_layout(self.G))
         return fig
+
+
+    def parameters(self):
+        """ Draw parameters for linear relation between variables
+        """
+        return {n: {k[0]: np.random.randint(-5,6) for k in self.G.in_edges(n)} for n in self.G.nodes}
