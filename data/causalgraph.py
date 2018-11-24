@@ -85,7 +85,9 @@ class cgraph:
 
 
     def yield_dataset(self, nobs):
-        """ Simulate rows and columns from the causal graph
+        """ Simulate rows and columns from the causal graph by repeatedly
+        filling the columns for which we know all ancestors until the entire
+        dataset is complete.
         """
         done = {k: False for k in self.parameters.keys()}
         X = np.zeros(shape = (nobs, len(self.G.nodes)))

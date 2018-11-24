@@ -3,12 +3,12 @@ Simulating random causal graphs for experimenting with various regression techni
 
 ## Usage
 
-the cgraph class simulates random causal graphs
+the cgraph class simulates random causal graphs (these are directed and acyclic, im not sure if this is completely required)
 ```python
 from data.causalgraph import cgraph
 
 
-C = cgraph(4, density =1)
+C = cgraph(4, density = 1)   # density is a very rough measure for the connectedness of the graph
 C.draw_graph()
 ```
 will yield a graph like
