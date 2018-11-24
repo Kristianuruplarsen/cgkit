@@ -7,21 +7,11 @@ import matplotlib.pyplot as plt
 from data.causalgraph import cgraph
 
 
-C = cgraph(2, density =10)
+C = cgraph(5, density =1)
 C.draw_graph()
 
 
+C.G.edges(data = True)
 
-2+2
-
-C.edges
-
-
-
-
-
-
-class simdata:
-
-    def __init__(self, causalgraph):
-        self.G = causalgraph
+y = np.zeros(shape = 1000)
+X = np.zeros(shape = (1000, C.nvars))

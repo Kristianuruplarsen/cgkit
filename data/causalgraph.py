@@ -23,7 +23,7 @@ class cgraph:
         if not 0 < density <= 1:
             raise ValueError("Density must be in the interval [0,1]")
 
-        self.ncon = np.ceil(density* ((self.nvars + 1)*(self.nvars))/2)
+        self.ncon = np.ceil(density* ((self.nvars - 1)*(self.nvars))/2)
         self.nodelist = [i for i in range(self.nvars)] + ['Y']
         self.G = nx.DiGraph()
 
@@ -57,8 +57,13 @@ class cgraph:
             or (end, begin) in e:
                 continue
 
+            # Ensures result is a DAG
+            if len(list(nx.simple_cycles(nx.DiGraph(e + [(begin, end)])))) > 0:
+                continue
+
             e.append((begin, end))
             c.append(corr)
+
         return e,c
 
 
