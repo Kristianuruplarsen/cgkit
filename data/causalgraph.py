@@ -13,9 +13,11 @@ class cgraph:
                 number_of_X,
                 density = 1,
                 edges = "random",
+                parameter_space = lambda:  np.random.randint(1,6),
                 weights = None):
 
         self.nvars = int(number_of_X)
+        self.parameter_space = parameter_space
 
         if self.nvars <= 0:
             raise ValueError("input number_of_X must be a positive integer")
@@ -39,6 +41,8 @@ class cgraph:
             for e,c in zip(self.edges, self.weights):
                 self.G.add_edge(*e, weight = c)
 
+
+        self.parameters = self.parameters()
 
     def random_edges(self):
         """ Randomly constructs causal edges between variables
@@ -77,4 +81,31 @@ class cgraph:
     def parameters(self):
         """ Draw parameters for linear relation between variables
         """
-        return {n: {k[0]: np.random.randint(-5,6) for k in self.G.in_edges(n)} for n in self.G.nodes}
+        return {n: {k[0]: self.parameter_space() for k in self.G.in_edges(n)} for n in self.G.nodes}
+
+
+    def yield_dataset(self, nobs):
+        """ Simulate rows and columns from the causal graph
+        """
+        done = {k: False for k in self.parameters.keys()}
+        X = np.zeros(shape = (nobs, len(self.G.nodes)))
+
+        while not all(done.values()):
+            for par in [p for p in done if not done[p]]:
+                # Independent variables
+                if len(self.parameters[par]) == 0 and not done[par]:
+                    X[:,par] = np.random.normal(size = nobs)
+                    done[par] = True
+
+                # If all ancestors are made
+                if all({k: done[k] for k in self.parameters[par].keys()}.values()) and not done[par]:
+
+                    for var in self.parameters[par]:
+                        if par == 'Y':
+                            X[:,-1] += self.parameters[par][var] * X[:,var]
+                            done[par] = True
+                        else:
+                            X[:,par] += self.parameters[par][var]*X[:,var]
+                            done[par] = True
+        self.X = X
+        return self.X
