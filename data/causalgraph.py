@@ -6,18 +6,24 @@ import numpy as np
 import networkx as nx
 import random
 
-class cgraph:
+class CausalGraph:
     """ Causal graph simulator
     """
     def __init__(self,
                 number_of_X,
                 density = 1,
                 edges = "random",
+                seed = None,
                 parameter_space = lambda:  np.random.randint(1,6),
                 noise_space = lambda nobs: np.random.normal(size = nobs),
-                weights = None):
+                weights = None
+                ):
 
+        self.seed = seed
         self.nvars = int(number_of_X)
+
+        if self.seed is not None:
+            np.random.seed(self.seed)
 
         self.parameter_space = parameter_space
         self.noise_space = noise_space
@@ -50,13 +56,21 @@ class cgraph:
     def random_edges(self):
         """ Randomly constructs causal edges between variables
         """
+        # TODO: probabily generating corr is not needed for
+        # anything. Remove here and above 
+
         e = list()
         c = list()
 
         while len(e) < self.ncon:
+
             corr = np.random.uniform(-1,1)
-            begin = random.choice(self.nodelist)
-            end = random.choice(self.nodelist)
+
+            bidx = np.random.choice(len(self.nodelist))
+            begin = self.nodelist[bidx]
+
+            eidx = np.random.choice(len(self.nodelist))
+            end = self.nodelist[eidx]
 
             if begin == 'Y' \
             or begin == end \
@@ -114,3 +128,16 @@ class cgraph:
                             done[par] = True
         self.X = X
         return self.X
+
+    def pintervene(self, effect, cause, parameter, unsafe = False):
+        if not isinstance(parameter,(float, int)):
+            raise ValueError("parameter must be a number.")
+
+        if not unsafe:
+            try:
+                self.parameters[effect][cause]
+            except:
+                raise KeyError("Creating new connections can jeopardize DAG structure")
+
+        self.parameters[effect][cause] = parameter
+        return self
