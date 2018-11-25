@@ -4,7 +4,7 @@
 
 import numpy as np
 import networkx as nx
-import random
+import pandas as pd
 
 class CausalGraph:
     """Simulate a full causal graph.
@@ -55,7 +55,7 @@ class CausalGraph:
         self.G.add_nodes_from(self.nodelist)
 
         if edges == "random":
-            self.edges = self.random_edges()
+            self.edges = self._random_edges()
             for e in self.edges:
                 self.G.add_edge(*e)
         else:
@@ -63,9 +63,10 @@ class CausalGraph:
             for e in self.edges:
                 self.G.add_edge(*e)
 
-        self.parameters = self.parameters()
+        self.parameters = self._parameters()
 
-    def random_edges(self):
+
+    def _random_edges(self):
         """ Randomly constructs causal edges between variables. Internal
         """
         e = list()
@@ -100,7 +101,7 @@ class CausalGraph:
         return fig
 
 
-    def parameters(self):
+    def _parameters(self):
         """ Draw parameters for linear relation between variables. Internal
         """
         return {n: {k[0]: self.parameter_space() for k in self.G.in_edges(n)} for n in self.G.nodes}
@@ -134,8 +135,15 @@ class CausalGraph:
                         else:
                             X[:,par] += self.parameters[par][var]*X[:,var] + self.noise_space(nobs)
                             done[par] = True
-        self.X = X
-        return self.X
+        # Set attributes in self
+        self.X = X[:,:-1]
+        self.y =  X[:,-1]
+        self.df = pd.DataFrame(X)
+        self.df.columns = self.nodelist
+
+        # Return relevant attributes
+        return (self.X, self.y), self.df
+
 
     def pintervene(self, effect, cause, parameter, unsafe = False):
         """ Intervene on a specific parameter.
@@ -147,7 +155,7 @@ class CausalGraph:
                 effect.
             parameter (float): new parameter value.
             unsafe (bool): if unsafe you can create parameters for relations that
-                do not exist. Default False. 
+                do not exist. Default False.
         """
         if not isinstance(parameter,(float, int)):
             raise ValueError("parameter must be a number.")
@@ -160,3 +168,7 @@ class CausalGraph:
 
         self.parameters[effect][cause] = parameter
         return self
+
+
+    def vintervene(self, cause, transformation):
+        pass
