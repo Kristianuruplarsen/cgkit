@@ -52,7 +52,7 @@ This code changes the parameter in the equation X0 = 5*X2 to a 2 (i.e. X0 = -5*X
 </p>
 
 
-Running OLS on this dataset with _Y_ as the outcome yields accurate parameter estimates
+Running OLS on the original simulated dataset with _Y_ as the outcome yields accurate parameter estimates
 
 <p align="center">
 <img src="figs/regressionresults.png" width = "60%">
