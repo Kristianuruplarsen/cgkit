@@ -7,20 +7,33 @@ import networkx as nx
 import random
 
 class CausalGraph:
-    """ Causal graph simulator
+    """Simulate a full causal graph.
     """
     def __init__(self,
-                number_of_X,
+                noX,
                 density = 1,
                 edges = "random",
                 seed = None,
                 parameter_space = lambda:  np.random.randint(1,6),
                 noise_space = lambda nobs: np.random.normal(size = nobs),
-                weights = None
                 ):
+        """ Simulate a causal graph
+
+        Args:
+            noX (int): Number of X variables
+            density (float): graph connectedness (between 0,1)
+            edges (list): manually constructed edges or default="random" for
+                randomly generated edges.
+            seed (int): seed
+            parameter_space (func): lambda function that returns parameter values
+                default=np.random.randint(1,6)
+            noise_space (func): What distribution should we draw from for the
+            undetermined component of variables? default is a std. gaussian.
+                Must be a function of the number of observations!
+        """
 
         self.seed = seed
-        self.nvars = int(number_of_X)
+        self.nvars = int(noX)
 
         if self.seed is not None:
             np.random.seed(self.seed)
@@ -29,10 +42,10 @@ class CausalGraph:
         self.noise_space = noise_space
 
         if self.nvars <= 0:
-            raise ValueError("input number_of_X must be a positive integer")
+            raise ValueError("input noX must be a positive integer")
 
         if not 0 < density <= 1:
-            raise ValueError("Density must be in the interval [0,1]")
+            raise ValueError("Density must be in the interval ]0,1]")
 
         self.ncon = np.ceil(density* ((self.nvars - 1)*(self.nvars))/2)
         self.nodelist = [i for i in range(self.nvars)] + ['Y']
@@ -40,31 +53,24 @@ class CausalGraph:
 
         # Add X-variables 0-nvars and Y
         self.G.add_nodes_from(self.nodelist)
+
         if edges == "random":
-            self.edges, self.weights = self.random_edges()
-            for e,c in zip(self.edges, self.weights):
-                self.G.add_edge(*e, weight = c)
-
+            self.edges = self.random_edges()
+            for e in self.edges:
+                self.G.add_edge(*e)
         else:
-            self.edges,self.weights = edges, weights
-            for e,c in zip(self.edges, self.weights):
-                self.G.add_edge(*e, weight = c)
-
+            self.edges = edges
+            for e in self.edges:
+                self.G.add_edge(*e)
 
         self.parameters = self.parameters()
 
     def random_edges(self):
-        """ Randomly constructs causal edges between variables
+        """ Randomly constructs causal edges between variables. Internal
         """
-        # TODO: probabily generating corr is not needed for
-        # anything. Remove here and above 
-
         e = list()
-        c = list()
 
         while len(e) < self.ncon:
-
-            corr = np.random.uniform(-1,1)
 
             bidx = np.random.choice(len(self.nodelist))
             begin = self.nodelist[bidx]
@@ -83,20 +89,19 @@ class CausalGraph:
                 continue
 
             e.append((begin, end))
-            c.append(corr)
 
-        return e,c
+        return e
 
 
     def draw_graph(self):
-        """ Plot the simulated graph
+        """ Plot the simulated graph.
         """
         fig = nx.draw(self.G, with_labels = True, pos = nx.circular_layout(self.G))
         return fig
 
 
     def parameters(self):
-        """ Draw parameters for linear relation between variables
+        """ Draw parameters for linear relation between variables. Internal
         """
         return {n: {k[0]: self.parameter_space() for k in self.G.in_edges(n)} for n in self.G.nodes}
 
@@ -105,6 +110,9 @@ class CausalGraph:
         """ Simulate rows and columns from the causal graph by repeatedly
         filling the columns for which we know all ancestors until the entire
         dataset is complete.
+
+        Args:
+            nobs (int): number of observations.
         """
         done = {k: False for k in self.parameters.keys()}
         X = np.zeros(shape = (nobs, len(self.G.nodes)))
@@ -130,6 +138,17 @@ class CausalGraph:
         return self.X
 
     def pintervene(self, effect, cause, parameter, unsafe = False):
+        """ Intervene on a specific parameter.
+        Replaces the parameter b in the equation
+        effect = b*cause + ... with something new.
+        Args:
+            effect (int/'Y'): the variable whose equation to intervening on.
+            cause (int): The variable to get a new parameter in the equation for
+                effect.
+            parameter (float): new parameter value.
+            unsafe (bool): if unsafe you can create parameters for relations that
+                do not exist. Default False. 
+        """
         if not isinstance(parameter,(float, int)):
             raise ValueError("parameter must be a number.")
 

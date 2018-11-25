@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from data.causalgraph import CausalGraph
+from graph.causalgraph import CausalGraph
 
 
 C = CausalGraph(5,
