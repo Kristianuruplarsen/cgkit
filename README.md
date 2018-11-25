@@ -7,11 +7,13 @@ the `CausalGraph` class simulates random causal graphs (these are directed and a
 ```python
 from cgkit import CausalGraph
 
-C = CausalGraph(5,
+C = CausalGraph(n_continuous = 4,
+                n_dummies = 1,
                 density =0.8,
-                seed = 1,
+                seed = 5,
                 parameter_space = lambda: np.random.randint(-10,11)
                 )
+
 C.draw_graph()
 ```
 will yield a graph like
@@ -20,15 +22,15 @@ will yield a graph like
 <img src="figs/examplegraph.png" width = "60%">
 </p>
 
-Which shows the simulated causal relation between each variable. Parameters governing the relation between the variables are stored in `C.parameters` as a dictionary with one key for each variable. Within each key is then a dictionary of `{ancestor:parameter}` pairs
+Which shows the simulated causal relation between each variable. The class can handle both dummies and continuous variables. Parameters governing the relation between the variables are stored in `C.parameters` as a dictionary with one key for each variable. Within each key is then a dictionary of `{ancestor:parameter}` pairs
 
 ```
-{0: {3: -1},
- 1: {0: 0, 3: -1, 2: -1},
- 2: {},
- 3: {},
- 4: {0: 5},
- 'Y': {3: 8, 1: -3, 4: 6}}
+{'c0': {'c3': -1},
+ 'c1': {'c0': 0, 'c3': -1, 'c2': -1},
+ 'c2': {},
+ 'c3': {},
+ 'd0': {'c0': -9},
+ 'Y': {'c3': 8, 'c1': -3, 'd0': 6}}
 ```
 The parameters are drawn randomly (in this case as integers between -10 and 10). We can simulate a row-column dataset with
 ```python

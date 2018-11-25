@@ -7,11 +7,14 @@ import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# TODO: implement dummy variables as special category!
+
 class CausalGraph:
     """Simulate a full causal graph.
     """
     def __init__(self,
-                noX,
+                n_continuous,
+                n_dummies = 0,
                 density = 1,
                 edges = "random",
                 seed = None,
@@ -21,7 +24,8 @@ class CausalGraph:
         """ Simulate a causal graph
 
         Args:
-            noX (int): Number of X variables
+            n_continuous (int): Number of continous X variables
+            n_dummies (int): Number of binary X variables
             density (float): graph connectedness (between 0,1)
             edges (list): manually constructed edges or default="random" for
                 randomly generated edges.
@@ -34,7 +38,10 @@ class CausalGraph:
         """
 
         self.seed = seed
-        self.nvars = int(noX)
+        self.n_continuous = int(n_continuous)
+        self.n_dummies = int(n_dummies)
+
+        self.nvars = self.n_continuous + self.n_dummies
 
         if self.seed is not None:
             np.random.seed(self.seed)
@@ -43,13 +50,20 @@ class CausalGraph:
         self.noise_space = noise_space
 
         if self.nvars <= 0:
-            raise ValueError("input noX must be a positive integer")
+            raise ValueError("input n_continuous must be a positive integer")
 
         if not 0 < density <= 1:
             raise ValueError("Density must be in the interval ]0,1]")
 
         self.ncon = np.ceil(density* ((self.nvars - 1)*(self.nvars))/2)
-        self.nodelist = [i for i in range(self.nvars)] + ['Y']
+
+        self.continuous_nodes = [f'c{i}' for i in range(self.n_continuous)]
+        self.binary_nodes = [f'd{i}' for i in range(self.n_dummies)]
+
+        self.nodelist = self.continuous_nodes + \
+                        self.binary_nodes + \
+                        ['Y']
+
         self.G = nx.DiGraph()
 
         # Add X-variables 0-nvars and Y
@@ -95,33 +109,6 @@ class CausalGraph:
         return e
 
 
-    def draw_graph(self):
-        """ Plot the simulated graph.
-        """
-        p = nx.circular_layout(self.G)
-        nodes1 = nx.draw_networkx_nodes(self.G,
-                              nodelist = [i for i in self.G.nodes if not i == 'Y'],
-                              pos = p,
-                              node_color = 'skyblue',
-                              alpha = 1)
-
-        nodes2 = nx.draw_networkx_nodes(self.G,
-                               nodelist = ['Y'],
-                               pos = p,
-                               node_color = 'red',
-                               alpha = 0.8)
-
-        nodes1.set_edgecolor('black')
-        nodes2.set_edgecolor('black')
-
-        nx.draw_networkx_edges(self.G,
-                              pos = p,
-                              width = 1.0)
-
-        nx.draw_networkx_labels(self.G, pos = p)
-        plt.axis('off')
-        return None
-
     def _parameters(self):
         """ Draw parameters for linear relation between variables. Internal
         """
@@ -137,30 +124,41 @@ class CausalGraph:
             nobs (int): number of observations.
         """
         done = {k: False for k in self.parameters.keys()}
-        X = np.zeros(shape = (nobs, len(self.G.nodes)))
+
+        X = pd.DataFrame(
+            np.zeros(shape = (nobs, len(self.G.nodes)))
+            )
+        X.columns = self.nodelist
 
         while not all(done.values()):
             for par in [p for p in done if not done[p]]:
                 # Independent variables
                 if len(self.parameters[par]) == 0 and not done[par]:
-                    X[:,par] = self.noise_space(nobs)
+                    X[par] = self.noise_space(nobs)
                     done[par] = True
+
+                    # Make dummies
+                    if par[0] == 'd':
+                        X[par] = np.where(X[par] > np.mean(X[par]), 1, 0)
+
 
                 # If all ancestors are made
                 if all({k: done[k] for k in self.parameters[par].keys()}.values()) and not done[par]:
 
+                    # For each variable that is in the equation
                     for var in self.parameters[par]:
-                        if par == 'Y':
-                            X[:,-1] += self.parameters[par][var] * X[:,var] + self.noise_space(nobs)
-                            done[par] = True
-                        else:
-                            X[:,par] += self.parameters[par][var]*X[:,var] + self.noise_space(nobs)
-                            done[par] = True
+
+                        X[par] += self.parameters[par][var] * X[var] + self.noise_space(nobs)
+                        done[par] = True
+
+                    # Make dummies
+                    if par[0] == 'd':
+                        X[par] = np.where(X[par] > np.mean(X[par]), 1, 0)
+
         # Set attributes in self
-        self.X = X[:,:-1]
-        self.y =  X[:,-1]
-        self.df = pd.DataFrame(X)
-        self.df.columns = self.nodelist
+        self.X = X.drop('Y', axis = 1).values
+        self.y =  X['Y'].values
+        self.df = X
 
         # Return relevant attributes
         return (self.X, self.y), self.df
@@ -192,4 +190,40 @@ class CausalGraph:
 
 
     def vintervene(self, cause, transformation):
-        pass
+        raise NotImplementedError("cannot intervene on values yet.")
+
+
+    def draw_graph(self):
+        """ Plot the simulated graph.
+        """
+        p = nx.circular_layout(self.G)
+        nodes1 = nx.draw_networkx_nodes(self.G,
+                              nodelist = self.continuous_nodes,
+                              pos = p,
+                              node_color = 'royalblue',
+                              alpha = 1)
+
+        nodes2 = nx.draw_networkx_nodes(self.G,
+                              nodelist = self.binary_nodes,
+                              pos = p,
+                              node_color = 'white',
+                              alpha = 1)
+
+
+        nodes3 = nx.draw_networkx_nodes(self.G,
+                               nodelist = ['Y'],
+                               pos = p,
+                               node_color = 'red',
+                               alpha = 0.8)
+
+        nodes1.set_edgecolor('black')
+        nodes2.set_edgecolor('black')
+        nodes3.set_edgecolor('black')
+
+        nx.draw_networkx_edges(self.G,
+                              pos = p,
+                              width = 1.0)
+
+        nx.draw_networkx_labels(self.G, pos = p)
+        plt.axis('off')
+        return None

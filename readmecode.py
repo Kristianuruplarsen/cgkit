@@ -12,7 +12,8 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 
-C = CausalGraph(5,
+C = CausalGraph(4,
+                n_dummies = 1,
                 density =0.8,
                 seed = 5,
                 parameter_space = lambda: np.random.randint(-10,11)
@@ -27,11 +28,12 @@ plt.savefig("figs/examplegraph.png")
 
 with sns.color_palette("BrBG_d"):
     sns.pairplot(df)
-#    plt.savefig('figs/pairs.png')
+    plt.savefig('figs/pairs.png')
+
 
 C.parameters
 
-C.pintervene(effect = 4, cause = 0, parameter = 5)
+C.pintervene(effect = 'c1', cause = 'c0', parameter = 5)
 (Xp,yp), dfp = C.yield_dataset(1000)
 
 
@@ -40,18 +42,20 @@ dfp['Intervention'] = 'Yes'
 
 plot = pd.concat([df, dfp])
 
+
 sns.pairplot(plot, hue = 'Intervention', palette = 'BrBG')
-#plt.savefig("figs/pairs2.png")
+plt.savefig("figs/pairs2.png")
 
 
+from collections import defaultdict
 
-
-
-result = sm.OLS(df['Y'], df[[0,1,2,3,4]]).fit()
+result = sm.OLS(df['Y'], df.drop(['Y', 'Intervention'], axis = 1)).fit()
 
 cint = result.conf_int()
 est = result.params
-act = {0:0, 1:-3, 2:0, 3:8, 4:6}
+
+act = C.parameters['Y']
+act = defaultdict(int, act)
 
 i = 0
 for var in cint.index:
