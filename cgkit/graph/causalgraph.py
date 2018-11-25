@@ -5,6 +5,7 @@
 import numpy as np
 import networkx as nx
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class CausalGraph:
     """Simulate a full causal graph.
@@ -97,9 +98,29 @@ class CausalGraph:
     def draw_graph(self):
         """ Plot the simulated graph.
         """
-        fig = nx.draw(self.G, with_labels = True, pos = nx.circular_layout(self.G))
-        return fig
+        p = nx.circular_layout(self.G)
+        nodes1 = nx.draw_networkx_nodes(self.G,
+                              nodelist = [i for i in self.G.nodes if not i == 'Y'],
+                              pos = p,
+                              node_color = 'skyblue',
+                              alpha = 1)
 
+        nodes2 = nx.draw_networkx_nodes(self.G,
+                               nodelist = ['Y'],
+                               pos = p,
+                               node_color = 'red',
+                               alpha = 0.8)
+
+        nodes1.set_edgecolor('black')
+        nodes2.set_edgecolor('black')
+
+        nx.draw_networkx_edges(self.G,
+                              pos = p,
+                              width = 1.0)
+
+        nx.draw_networkx_labels(self.G, pos = p)
+        plt.axis('off')
+        return None
 
     def _parameters(self):
         """ Draw parameters for linear relation between variables. Internal
