@@ -16,7 +16,6 @@ C.draw_graph()
 ```
 will yield a graph like
 
-
 <p align="center">
 <img src="figs/examplegraph.png" width = "60%">
 </p>
@@ -50,4 +49,11 @@ This code changes the parameter in the equation X0 = 5*X2 to a 2 (i.e. X0 = -5*X
 
 <p align="center">
 <img src="figs/pairs2.png" width = "60%">
+</p>
+
+
+Running OLS on this dataset with _Y_ as the outcome yields accurate parameter estimates
+
+<p align="center">
+<img src="figs/regressionresults.png" width = "60%">
 </p>
