@@ -3,6 +3,7 @@ Simulating random causal graphs for experimenting with various regression techni
 
 ## TODO
 * passing cutom dgp for individual variables
+* Variyng functional relationship between variables
 * binary outcomes
 * Factor variables 
 
