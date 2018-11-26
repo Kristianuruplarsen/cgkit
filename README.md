@@ -1,6 +1,11 @@
 # Causal Graphs and Regression
 Simulating random causal graphs for experimenting with various regression techniques. This is not finished, so it might take some tinkering to get working.
 
+## TODO
+* passing cutom dgp for individual variables
+* binary outcomes
+* Factor variables 
+
 ## Usage
 
 the `CausalGraph` class simulates random causal graphs (these are directed and acyclic, although im not entirely sure if this is required). By default the generator is not seeded, but you can simply set a seed if you want to.
