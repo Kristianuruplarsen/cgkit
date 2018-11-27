@@ -1,4 +1,3 @@
-
 import numpy as np
 import networkx as nx
 
@@ -29,9 +28,6 @@ plt.savefig("figs/examplegraph.png")
 with sns.color_palette("BrBG_d"):
     sns.pairplot(df)
     plt.savefig('figs/pairs.png')
-
-
-C.parameters
 
 C.pintervene(effect = 'c1', cause = 'c0', parameter = 5)
 (Xp,yp), dfp = C.yield_dataset(1000)
@@ -70,8 +66,20 @@ for var in cint.index:
         plt.plot([cint[0][var], cint[1][var]], [var, var], color = "black")
 
 plt.legend()
-plt.yticks([0,1,2,3,4])
 plt.xlabel("Estimated value")
 plt.ylabel("Variable")
 plt.savefig("figs/regressionresults.png")
 plt.show()
+
+
+plt.scatter(
+df[df['d0'] == 1]['Y'],
+df[df['d0'] == 1]['c1'],
+color = 'b'
+)
+
+plt.scatter(
+df[df['d0'] == 0]['Y'],
+df[df['d0'] == 0]['c1'],
+color = 'r'
+)
