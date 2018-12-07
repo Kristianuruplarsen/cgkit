@@ -28,7 +28,7 @@ will yield a graph like
 <img src="figs/examplegraph.png" width = "60%">
 </p>
 
-Which shows the simulated causal relation between each variable. The class can handle both dummies and continuous variables. Parameters governing the relation between the variables are stored in `C.parameters` as a dictionary with one key for each variable. Within each key is then a dictionary of `{ancestor:parameter}` pairs
+Which shows the simulated causal relation between each variable. The class can handle both dummies and continuous variables. Parameters governing the relation between the variables are stored in `C.weights` as a dictionary with one key for each variable. Within each key is then a dictionary of `{ancestor:weights}` pairs
 
 ```
 {'c0': {'c3': -1},
@@ -48,9 +48,9 @@ where X and y are numpy arrays, while df is a pandas dataframe containing both X
 <img src="figs/pairs.png"  width = "60%">
 </p>
 
-Next we can intervene on one of the parameters in the network using `pintervene`
+Next we can intervene on one of the parameters in the network using `wintervene`
 ```python
-C.pintervene(effect = 4, cause = 0, parameter = 5)
+C.wintervene(effect = 4, cause = 0, parameter = 5)
 (Xp,yp), dfp = C.yield_dataset(1000)
 ```
 This code changes the parameter in the equation X0 = 5*X2 to a 2 (i.e. X0 = -5*X2). When overlaying the new and old dataset we get a figure like

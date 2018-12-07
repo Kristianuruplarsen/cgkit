@@ -1,2 +1,2 @@
 from .graph import *
-from .reg import * 
+#from .reg import * 
