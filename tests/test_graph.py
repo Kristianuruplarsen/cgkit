@@ -1,11 +1,32 @@
 #%%
-from cgkit import CausalGraph
-#%%
+from cgkit import (CausalGraph,
+                   DataYielder,
+                   GraphUtils)
 
+import numpy as np
+#%%
+def test_linear_nonlinear():
+    C = CausalGraph(5)
+    f = C._yield_linear_nonlinear_effects(C._FUNCS, 0.5)
+    f(4)
+    f(-4)
+
+test_linear_nonlinear()
+
+#%%
+def test_yielder_kwargs():
+    C = CausalGraph(5, seed = 1)
+    C.yield_dataset(10, p_linear_function = 1)
+
+test_yielder_kwargs()
+
+#%%
 def test_graph():
     C = CausalGraph(n_continuous=5)
     return True 
+assert test_graph() == True
 
+#%%
 def test_wintervene():
     C = CausalGraph(4,
                 n_dummies = 1,
@@ -19,6 +40,9 @@ def test_wintervene():
         return True 
     return False
 
+assert test_wintervene() == True
+
+#%%
 
 def test_node_ok():
     C = CausalGraph(5, n_dummies=1, density=0.1, seed = 5)
@@ -28,19 +52,26 @@ def test_node_ok():
     assert C._new_node_ok('c2', 'Y', C.edges) == True 
 
     return True 
+assert test_node_ok() == True
 
+#%%
 
 def test_value_checks():
     C = CausalGraph(5, n_dummies=1, density=0.1, seed = 5)
-    
+    f = list()
     try:
-        # Should fail
         C = CausalGraph(0, n_dummies=0, density=0.1, seed = 5)
-        C = CausalGraph(5, n_dummies=-1, density=0.1, seed = 5) 
-        return True
     except:
-        return False
-    
+        f.append(1)
+    try:
+        C = CausalGraph(5, n_dummies=-1, density=0.1, seed = 5) 
+    except:
+        f.append(2)
+
+    return f
+
+assert test_value_checks() == [1,2]
+#%%    
 
 def test_draw():
     C = CausalGraph(5, n_dummies=1, density=0.1, seed = 5)
@@ -53,9 +84,24 @@ def test_draw():
     C.draw_graph()
 
 
-assert test_graph() == True
-assert test_node_ok() == True
-assert test_wintervene() == True
+
 test_draw()
+
+#%%
+
+def test_nonlinear():
+    C = CausalGraph(5, n_dummies= 1, seed = 5)
+    n = C.nonlinearity_links
+    assert len(n) == len(C.G.nodes)
+
+test_nonlinear()
+
+#%%
+def test_nonlinear_2():
+    C = CausalGraph(5, n_dummies= 1, seed = 5)
+    assert str(type(C.nonlinearity_links['c0']['c1'])) == "<class 'function'>"
+
+
+test_nonlinear_2()
 
 #%%

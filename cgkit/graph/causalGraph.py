@@ -16,56 +16,21 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from .graphUtils import GraphUtils
-#from .dataYielder import DataYielder
-
-
-
-class DataYielder():
-    
-    def __init__(self,
-                nobs,
-                weights,
-                noise_space
-                ):
-
-        self.nobs = nobs
-        self.weights = weights
-        self.noise_space = noise_space
-
-    def _make_independent(self, param_id):
-        """
-        Random normal variable with no predictors.
-        """
-        random_data = self.noise_space(self.nobs)
-
-        if param_id[0] == 'd':
-            binary_data = np.where( random_data > np.mean(random_data), 1, 0)
-            return binary_data
-
-        return random_data
-
-
-    def _make_dependent(self, X, param_id):
-        """
-        Random normal variable plus any causal effects from other 
-        variables in the graph.
-        """
-        random_data = self.noise_space(self.nobs)
-
-        for var_id in self.weights[param_id]:
-            random_data += (self.weights[param_id][var_id]) * X[var_id] 
-
-        if param_id[0] == 'd':
-            binary_data = np.where( random_data > np.mean(random_data), 1, 0)
-            return binary_data
-        return random_data
-        
-
+from .dataYielder import DataYielder
 
 
 class CausalGraph(GraphUtils):
     """Simulate a full causal graph.
     """
+    _FUNCS = (
+        ('linear', lambda x: x),
+        ('square', lambda x: x**2),
+        ('cube',   lambda x: x**3),
+        ('lin_square', lambda x: x + x**2), 
+        ('lin_square_cube', lambda x: x + x**2 + x**3),
+        ('square_cube', lambda x: x**2 + x**3)
+    )
+
     def __init__(self,
                 n_continuous,
                 n_dummies = 0,
@@ -73,6 +38,7 @@ class CausalGraph(GraphUtils):
                 edges = "random",
                 seed = None,
                 parameter_space = lambda:  np.random.randint(1,6),
+                p_linear = 0.5,
                 noise_space = lambda nobs: np.random.normal(size = nobs),
                 ):
         """ 
@@ -94,6 +60,9 @@ class CausalGraph(GraphUtils):
             parameter_space: func 
                 Lambda function that returns parameter values
                 default=np.random.randint(1,6)
+            p_linear: float [0,1]
+                The probability that the random nonlinearity generator does 
+                not have any effect.
             noise_space: func 
                 What distribution should we draw from for the
                 undetermined component of variables? default is a std. gaussian.
@@ -105,13 +74,14 @@ class CausalGraph(GraphUtils):
         """
         self._check_inputs(continuous = n_continuous,
                            dummies = n_dummies,
-                           density = density
+                           density = density,
+                           p_linear = p_linear
                           )
 
         self.seed = seed
         self.n_continuous = int(n_continuous)
         self.n_dummies = int(n_dummies)
-
+        self.plinear = p_linear
         self.nvars = self.n_continuous + self.n_dummies
         self.density = density
 
@@ -144,6 +114,7 @@ class CausalGraph(GraphUtils):
                 self.G.add_edge(*e)
 
         self.weights = self._weights()
+        self.nonlinearity_links = self._nonlinearities()
         self.biases = None
 
     def _random_edges(self):
@@ -173,15 +144,30 @@ class CausalGraph(GraphUtils):
 
         return e
 
+
     def _biases(self):
         return None
+
+    def _nonlinearities(self):
+        """
+        Draw nonlinearities to apply to the function relationships.
+        Mainly for internal use
+        """
+        def get_causes(effect): 
+            return {cause: self._yield_linear_nonlinear_effects(self._FUNCS, self.plinear, cause) for (cause,eff) in self.G.in_edges(effect)}
+
+        return {effect: get_causes(effect) for effect in self.G.nodes}
+
 
     def _weights(self):
         """ 
         Draw weights for linear relation between variables. 
         Mainly for internal use.
         """
-        return {n: {k[0]: self.parameter_space() for k in self.G.in_edges(n)} for n in self.G.nodes}
+        def get_causes(effect):
+            return {cause: self.parameter_space() for (cause,eff) in self.G.in_edges(effect)}
+
+        return {effect: get_causes(effect) for effect in self.G.nodes}
 
 
     def yield_dataset(self, nobs, **kwargs):
@@ -208,6 +194,8 @@ class CausalGraph(GraphUtils):
         dy = DataYielder(nobs = nobs,
                         weights = self.weights,
                         noise_space = self.noise_space,
+                        functions = self.nonlinearity_links,
+                        seed = self.seed,
                         **kwargs)
 
         X = pd.DataFrame( np.zeros(shape = (nobs, len(self.G.nodes))) )
@@ -222,7 +210,7 @@ class CausalGraph(GraphUtils):
                     done[par] = True
 
                 # If all ancestors are made
-                if all({k: done[k] for k in self.weights[par].keys()}.values()) and not done[par]:
+                if all({k: done[k] for k in self.weights[par].keys()}.values()) and not done[par]:                    
                     X[par] = dy._make_dependent(X, par)
                     done[par] = True
 

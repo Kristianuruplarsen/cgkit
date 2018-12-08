@@ -5,7 +5,7 @@
 
 class InvariantRegressionModel:
 
-    def __init__(self):
+    def __init__(self, data):
         pass
 
 

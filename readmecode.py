@@ -18,6 +18,7 @@ C = CausalGraph(4,
                 n_dummies = 1,
                 density =0.8,
                 seed = 5,
+                p_linear= 1,
                 parameter_space = lambda: np.random.randint(-10,11)
                 )
 
@@ -73,6 +74,7 @@ plt.ylabel("Variable")
 plt.savefig("figs/regressionresults.png")
 plt.show()
 
+
 #%%
 plt.scatter(
 df[df['d0'] == 1]['Y'],
@@ -86,10 +88,13 @@ df[df['d0'] == 0]['c1'],
 color = 'r'
 )
 
-
 #%%
-(3 + np.array([1,2,3]))*np.array([1,2,3])
+actual = C.weights['Y']
 
+for e,f in C.nonlinearity_links['Y'].items():
+    if f[0] != 'linear':
+        actual[f'{e}{f[0]}'] = actual[e]
 
+X = df.drop(['Y', 'Intervention'], axis = 1)
 
 #%%
