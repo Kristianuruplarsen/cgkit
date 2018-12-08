@@ -15,69 +15,51 @@ import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# TODO: implement dummy variables as special category!
+from .graphUtils import GraphUtils
+#from .dataYielder import DataYielder
 
-class GraphUtils:
 
-    @staticmethod
-    def _new_node_ok(begin, end, edges):
+
+class DataYielder():
+    
+    def __init__(self,
+                nobs,
+                weights,
+                noise_space
+                ):
+
+        self.nobs = nobs
+        self.weights = weights
+        self.noise_space = noise_space
+
+    def _make_independent(self, param_id):
         """
-        Check a node can be added to the graph. For internal use.
+        Random normal variable with no predictors.
+        """
+        random_data = self.noise_space(self.nobs)
 
-        Parameters
-        ----------
-        begin: node
-            Beginning node 
-        end: node
-            End node 
-        edges: list
-            List of already added edges
+        if param_id[0] == 'd':
+            binary_data = np.where( random_data > np.mean(random_data), 1, 0)
+            return binary_data
+
+        return random_data
+
+
+    def _make_dependent(self, X, param_id):
+        """
+        Random normal variable plus any causal effects from other 
+        variables in the graph.
+        """
+        random_data = self.noise_space(self.nobs)
+
+        for var_id in self.weights[param_id]:
+            random_data += (self.weights[param_id][var_id]) * X[var_id] 
+
+        if param_id[0] == 'd':
+            binary_data = np.where( random_data > np.mean(random_data), 1, 0)
+            return binary_data
+        return random_data
         
-        Returns
-        -------
-        boolean (ok/not ok)
-        """
-        if begin == 'Y' \
-        or begin == end \
-        or (begin, end) in edges \
-        or (end, begin) in edges:
-            return False
-        return True
-
-
-    @staticmethod
-    def _graph_remains_DAG(begin, end, edges):
-        """ 
-        Will adding begin, end break the DAG structure?
-        """
-        if len(list(nx.simple_cycles(nx.DiGraph(edges + [(begin, end)])))) > 0:
-            return False
-        return True
-
-
-    @staticmethod
-    def _check_inputs(continuous, dummies, density):
-        """ 
-        Check that inputs to CausalGraph are ok.
-        """
-        if not continuous >= 0 and isinstance(continuous, int):
-            raise ValueError("Input n_continuous must be a positive integer")
-
-        if not dummies >= 0 and isinstance(dummies, int):
-            raise ValueError("Input n_dummies must be a positive integer")
-
-        if not 0 < density <= 1:
-            raise ValueError("Density must be in the interval ]0,1]")
-
-
-    @staticmethod
-    def _calculate_n_connections(n_vars, density):
-        """
-        Number of graph edges calculated from the number of variables and 
-        the density.
-        """
-        return np.ceil(density * ( (n_vars - 1)*(n_vars)) / 2 )
-
 
 
 
@@ -148,9 +130,8 @@ class CausalGraph(GraphUtils):
                         self.binary_nodes + \
                         ['Y']
 
+        # Set up graph
         self.G = nx.DiGraph()
-
-        # Add X-variables 0-nvars and Y
         self.G.add_nodes_from(self.nodelist)
 
         if edges == "random":
@@ -203,7 +184,7 @@ class CausalGraph(GraphUtils):
         return {n: {k[0]: self.parameter_space() for k in self.G.in_edges(n)} for n in self.G.nodes}
 
 
-    def yield_dataset(self, nobs, fixed_effects = None):
+    def yield_dataset(self, nobs, **kwargs):
         """ 
         Simulate rows and columns from the causal graph by repeatedly
         filling the columns for which we know all ancestors until the entire
@@ -214,6 +195,8 @@ class CausalGraph(GraphUtils):
             nobs: int 
                 Number of observations.
 
+            **kwargs: 
+                Other arguments to DataYielder()
         Returns
         -------
             data: tuple
@@ -222,35 +205,26 @@ class CausalGraph(GraphUtils):
         """
         done = {k: False for k in self.weights.keys()}
 
-        X = pd.DataFrame(
-            np.zeros(shape = (nobs, len(self.G.nodes)))
-            )
+        dy = DataYielder(nobs = nobs,
+                        weights = self.weights,
+                        noise_space = self.noise_space,
+                        **kwargs)
+
+        X = pd.DataFrame( np.zeros(shape = (nobs, len(self.G.nodes))) )
         X.columns = self.nodelist
 
         while not all(done.values()):
             for par in [p for p in done if not done[p]]:
+
                 # Independent variables
                 if len(self.weights[par]) == 0 and not done[par]:
-                    X[par] = self.noise_space(nobs)
+                    X[par] = dy._make_independent(param_id = par)
                     done[par] = True
-
-                    # Make dummies
-                    if par[0] == 'd':
-                        X[par] = np.where(X[par] > np.mean(X[par]), 1, 0)
-
 
                 # If all ancestors are made
                 if all({k: done[k] for k in self.weights[par].keys()}.values()) and not done[par]:
-
-                    # For each variable that is in the equation
-                    for var in self.weights[par]:
-
-                        X[par] += self.weights[par][var] * X[var] + self.noise_space(nobs)
-                        done[par] = True
-
-                    # Make dummies
-                    if par[0] == 'd':
-                        X[par] = np.where(X[par] > np.mean(X[par]), 1, 0)
+                    X[par] = dy._make_dependent(X, par)
+                    done[par] = True
 
         # Set attributes in self
         self.X = X.drop('Y', axis = 1).values
@@ -260,6 +234,7 @@ class CausalGraph(GraphUtils):
         # Return relevant attributes
         data = (self.X, self.y), self.df
         return data
+
 
 
     def wintervene(self, effect, cause, parameter, unsafe = False):
@@ -287,14 +262,13 @@ class CausalGraph(GraphUtils):
 
         if not unsafe:
             try:
-                self.weights[effect][cause]
+                self.weights[effect][cause] = parameter
+                return self
             except:
                 raise KeyError("Creating new connections can jeopardize DAG structure")
-            finally:
-                return self
-
-        self.weights[effect][cause] = parameter
-        return self
+        else:
+            self.weights[effect][cause] = parameter
+            return self
 
 
     def bintervene(self, cause, transformation):
@@ -336,3 +310,5 @@ class CausalGraph(GraphUtils):
         nx.draw_networkx_labels(self.G, pos = p)
         plt.axis('off')
         return None
+
+
