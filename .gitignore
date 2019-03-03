@@ -3,3 +3,5 @@
 *.egg-info
 
 graph_old/*
+
+.vscode/*
