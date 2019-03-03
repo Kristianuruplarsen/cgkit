@@ -79,7 +79,8 @@ class GraphUtils:
         # Always linear effect from dummies.
         if cause[0] == 'd':
             idx = 0
-
+        elif p_linear == 1:
+            idx = 0
         else:
             idx = np.random.choice(len(functions_list), p = [p_linear] +\
                 [(1 - p_linear) / (len(functions_list) - 1) for _ in functions_list][1:]

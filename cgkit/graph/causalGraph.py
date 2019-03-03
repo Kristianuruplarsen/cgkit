@@ -8,7 +8,7 @@
 #   . Allow for categorical variables
 #   . Add biases to variables 
 # WORK IN PROGRESS:
-#   . include biases
+#   . include nonlinear effects
 
 import numpy as np
 import networkx as nx
@@ -115,7 +115,7 @@ class CausalGraph(GraphUtils):
 
         self.weights = self._weights()
         self.nonlinearity_links = self._nonlinearities()
-        self.biases = None
+        self.biases = self._biases()
 
     def _random_edges(self):
         """ 
@@ -214,6 +214,7 @@ class CausalGraph(GraphUtils):
                     X[par] = dy._make_dependent(X, par)
                     done[par] = True
 
+
         # Set attributes in self
         self.X = X.drop('Y', axis = 1).values
         self.y =  X['Y'].values
@@ -261,6 +262,10 @@ class CausalGraph(GraphUtils):
 
     def bintervene(self, cause, transformation):
         raise NotImplementedError("cannot intervene on values yet.")
+
+
+    def funcintervene(self, cause, effect, newfunc, newfuncname = 'intervention'):
+        raise NotImplementedError("cannot intervene on functions yet.")
 
 
     def draw_graph(self):
