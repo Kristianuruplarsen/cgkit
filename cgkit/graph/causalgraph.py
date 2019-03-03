@@ -9,6 +9,19 @@ import matplotlib.pyplot as plt
 
 
 def find_edge(edges, i, o):
+    """ Search through a list of edges and return the one from i to o.
+
+    Args:
+        edges(list): a list of `Edge` instances. 
+        i(str): in-edge.
+        o(str): out-edge
+
+    Returns:
+        Edge: The (first) matching edge.
+
+    Raises:
+        KeyError: the edge from i to o was not in the edgelist.
+    """
     for edge in edges:
         if edge.i == i and edge.o == o:
             return edge 
@@ -16,6 +29,19 @@ def find_edge(edges, i, o):
 
 
 class Edge(object):
+    """ Graph edge with bias and weight for the mathematical relation.
+
+    Args:
+        structure(GraphStructure): the graphstructure in which the edge lives.
+        i: in-edge.
+        o: out-edge.
+
+    Attributes:
+        i: in-edge.
+        o: out-edge.
+        bias: bias ("intercept")
+        weight: weight ("parameter")
+    """
 
     def __init__(self, structure, i, o):
         self.i = i 
@@ -25,17 +51,41 @@ class Edge(object):
         self.weight = structure.weight_space()
 
     def parameters(self):
+        """ Return the stored parameters in a tuple.
+
+        Returns:
+            tuple: a (bias, weight) tuple for the edge.
+        """
         return self.bias, self.weight
 
     def alter_bias(self, delta):
+        """ Change the bias stored in the edge.
+
+        Args:
+            delta(float): the amount by which the bias is changed.
+        """
         self.bias += delta
 
     def alter_weight(self, delta):
+        """ Change the weight stored in the edge.
+
+        Args:
+            delta(float): the amount by which the weight is changed.
+        """
         self.weight += delta
 
     
 
 class GraphStructure(object):
+    """ A graph structure containing the number of edged, nodes etc. of a 
+    causal graph. This includes containing the graph itself. 
+
+    Args:
+        continous(int): Number of continous variables.
+        dummies(int): Number of binary variables.
+        density(float): Edge density in graph.
+        seed(int): Seed for random things.
+    """
     
     def __init__(self,
                  continous: int,
@@ -65,6 +115,8 @@ class GraphStructure(object):
 
     @property 
     def bias_space(self):
+        """ The random space from which biases are initialized.
+        """
         return self._bias_space
 
     @bias_space.setter
@@ -74,6 +126,8 @@ class GraphStructure(object):
 
     @property 
     def weight_space(self):
+        """ The random space from which weights are initialized.
+        """
         return self._weight_space
 
     @weight_space.setter 
@@ -93,8 +147,14 @@ class GraphStructure(object):
 
     # Build the graph
     def _set_graph(self, reseed: bool = True):
-        """ Set the graph object, should only be used 
-            if the graph structure needs to be recomputed.
+        """ Set the graph object. Should only be used 
+        if the graph structure needs to be recomputed.
+
+        Args:
+            reseed(bool): Should the rng be reseeded before rebuilding the graph?
+        
+        Returns:
+            A networkx graph.
         """
         if reseed:
             self._reseed()
@@ -107,7 +167,7 @@ class GraphStructure(object):
 
     def _graph_make_raw(self, nodes, edges):
         """ Generate a random DAG with raw labels and no
-            other data.
+        other data.
         """
         G = nx.DiGraph()
 
@@ -199,6 +259,10 @@ class GraphStructure(object):
                    reseed: bool = False
                    ):
         """ Return a np array with data generated from the graph.
+
+        Args:
+            nobs(int): number of observations in data.
+            reseed(bool): Should the rng be reseeded?
         """
         if reseed:
             self._reseed()
@@ -226,14 +290,27 @@ class GraphStructure(object):
 
 
     def _as_dummy(self, X):
+        """ Convert continous to balanced binary.
+        """
         return np.where(X > np.mean(X), 1, 0)
 
     def columns(self):
+        """ Column names for the data.
+        """
         topo = list(nx.topological_sort(self.graph))        
         return topo
 
-class CausalGraph(object):
 
+
+class CausalSystem(object):
+    """ A causal system from which we can draw data. 
+
+    Args:
+        structure(GraphStructure): the graph structure to simulate data in. 
+        T(int): number of panel periods.
+        nobs(int): number of observations per panel period. 
+        reseed(bool): should the rng be reseeded?
+    """
     def __init__(self, 
                  structure: GraphStructure,
                  T: int,
@@ -268,6 +345,8 @@ class CausalGraph(object):
 
     
     def step_all(self):
+        """ Simulate data for all panel periods at once.
+        """
         while self.t < self.T:
             self.step()
         return self.data
