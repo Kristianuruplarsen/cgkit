@@ -15,9 +15,7 @@ from .components import Edge
 
 """
 TODO: 
-    - move all things data related to the CausalSystem
-    - Fix the random state
-    - Fix the edge density calculation. It's inconsistent. 
+    - Fix the random state in the System
 """
 
     
