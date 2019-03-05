@@ -6,73 +6,19 @@ import networkx as nx
 
 import matplotlib.pyplot as plt 
 
+from cgkit.utils import (find_edge,
+                         find_true_values,
+                         as_balanced_dummy)
+
+from .components import Edge
 
 
-def find_edge(edges, i, o):
-    """ Search through a list of edges and return the one from i to o.
-
-    Args:
-        edges(list): a list of `Edge` instances. 
-        i(str): in-edge.
-        o(str): out-edge
-
-    Returns:
-        Edge: The (first) matching edge.
-
-    Raises:
-        KeyError: the edge from i to o was not in the edgelist.
-    """
-    for edge in edges:
-        if edge.i == i and edge.o == o:
-            return edge 
-    raise KeyError("edge not in edgelist")
-
-
-class Edge(object):
-    """ Graph edge with bias and weight for the mathematical relation.
-
-    Args:
-        structure(GraphStructure): the graphstructure in which the edge lives.
-        i: in-edge.
-        o: out-edge.
-
-    Attributes:
-        i: in-edge.
-        o: out-edge.
-        bias: bias ("intercept")
-        weight: weight ("parameter")
-    """
-
-    def __init__(self, structure, i, o):
-        self.i = i 
-        self.o = o 
-
-        self.bias = structure.bias_space()
-        self.weight = structure.weight_space()
-
-    def parameters(self):
-        """ Return the stored parameters in a tuple.
-
-        Returns:
-            tuple: a (bias, weight) tuple for the edge.
-        """
-        return self.bias, self.weight
-
-    def alter_bias(self, delta):
-        """ Change the bias stored in the edge.
-
-        Args:
-            delta(float): the amount by which the bias is changed.
-        """
-        self.bias += delta
-
-    def alter_weight(self, delta):
-        """ Change the weight stored in the edge.
-
-        Args:
-            delta(float): the amount by which the weight is changed.
-        """
-        self.weight += delta
+"""
+TODO: 
+    - move all things data related to the CausalSystem
+    - Fix the random state
+    - Fix the edge density calculation. It's inconsistent. 
+"""
 
     
 
@@ -91,24 +37,22 @@ class GraphStructure(object):
                  continous: int,
                  dummies: int,
                  density: float,
-                 seed: int = None
+                 seed: int = 0
                 ):
 
         self.density = density 
         self.seed = seed 
+        np.random.seed(self.seed)
 
         self.n_continous = continous
         self.n_dummies = dummies
-        self.n_variables = continous + dummies
-        self.approx_n_edges = self._edges()
+        self.n_variables = continous + dummies 
+        self.n_edges = self._edges()
 
         # Hidden things
         self._bias_space = lambda: np.random.uniform(0,1)
         self._weight_space = lambda: np.random.uniform(0,1)
         self.max_degree = 3
-
-        if self.seed is not None:
-            np.random.seed(self.seed) 
 
         self.graph = self._set_graph()
         self.edges = [Edge(self, i, o) for i, o in self.graph.edges()]
@@ -142,7 +86,8 @@ class GraphStructure(object):
 
     def _edges(self): 
         """ Number of edges calculated from edge density """
-        max_edges = sum([n - 1 for n in range(1, self.n_variables + 1)])
+        
+        max_edges = self.n_variables*(self.n_variables - 1) 
         return round(self.density*max_edges)
 
     # Build the graph
@@ -156,10 +101,9 @@ class GraphStructure(object):
         Returns:
             A networkx graph.
         """
-        if reseed:
-            self._reseed()
+        np.random.seed(self.seed) 
 
-        graph = self._graph_make_raw(self.n_variables, self.approx_n_edges)
+        graph = self._graph_make_raw(self.n_variables, self.n_edges)
         graph = self._graph_assign_y(graph)
         graph = self._graph_assign_type(graph)
 
@@ -171,18 +115,22 @@ class GraphStructure(object):
         """
         G = nx.DiGraph()
 
-        for i in range(nodes):
+        for i in range(1, nodes + 1):
             G.add_node(i)
+
         while edges > 0:
-            a = np.random.randint(0, nodes)
-            b=a
+            a = np.random.randint(1, nodes + 1)
+            b=a            
             while b==a:
-                b = np.random.randint(0, nodes)
-            G.add_edge(a,b)
+                b = np.random.randint(1, nodes + 1)
+
+            if not ((a,b) in G.edges() or\
+                    (b,a) in G.edges()):
+                G.add_edge(a,b)
+
             if nx.is_directed_acyclic_graph(G):
                 edges -= 1
             else:
-                # we closed a loop!
                 G.remove_edge(a,b)
         return G
 
@@ -198,7 +146,7 @@ class GraphStructure(object):
                 return f'd{x}'
             return x
 
-        continous = set(random.sample(graph.nodes, self.n_continous))
+        continous = set(np.random.choice(graph.nodes, size = self.n_continous,  replace = False))
         dummies = set(graph.nodes) - continous
 
         graph = nx.relabel_nodes(graph, lambda x: relabeller(x, continous, dummies))
@@ -211,7 +159,7 @@ class GraphStructure(object):
         """
         topo = nx.topological_sort(graph)
         *_, last = topo 
-        graph = nx.relabel_nodes(graph, lambda x: 'y' if x == last else x)
+        graph = nx.relabel_nodes(graph, lambda x: 0 if x == last else x)
         return graph 
 
 
@@ -222,7 +170,7 @@ class GraphStructure(object):
 
         try:
             nodes1 = nx.draw_networkx_nodes(self.graph,
-                                nodelist = [x for x in self.graph.nodes if x[0] == 'c' and x[1] != 'y'],
+                                nodelist = [x for x in self.graph.nodes if x[0] == 'c' and x[1] != '0'],
                                 pos = p,
                                 node_color = 'royalblue',
                                 alpha = 1)
@@ -231,7 +179,7 @@ class GraphStructure(object):
             print("Error plotting continous")
         try:
             nodes2 = nx.draw_networkx_nodes(self.graph,
-                                nodelist = [x for x in self.graph.nodes if x[0] == 'd' and x[1] != 'y'],
+                                nodelist = [x for x in self.graph.nodes if x[0] == 'd' and x[1] != '0'],
                                 pos = p,
                                 node_color = 'white',
                                 alpha = 1)
@@ -239,7 +187,7 @@ class GraphStructure(object):
         except:
             print("Error plotting dummies")
         nodes3 = nx.draw_networkx_nodes(self.graph,
-                               nodelist = [x for x in self.graph.nodes if x[1] == 'y'],
+                               nodelist = [x for x in self.graph.nodes if x[1] == '0'],
                                pos = p,
                                node_color = 'red',
                                alpha = 0.8)
@@ -251,48 +199,9 @@ class GraphStructure(object):
 
         nx.draw_networkx_labels(self.graph, pos = p)
         plt.axis('off')
+
         return plt
 
-
-    def yield_data(self,
-                   nobs: int,
-                   reseed: bool = False
-                   ):
-        """ Return a np array with data generated from the graph.
-
-        Args:
-            nobs(int): number of observations in data.
-            reseed(bool): Should the rng be reseeded?
-        """
-        if reseed:
-            self._reseed()
-
-        topo = list(nx.topological_sort(self.graph))
-        data = np.random.randn(nobs, self.n_variables)
-        
-        for idx, o in enumerate(topo):
-            nodetype = o[0]
-            inedges = [x[0] for x in self.graph.in_edges(o)]
-
-            if len(inedges) == 0:
-                data[:,idx] = np.random.randn(nobs)
-
-            for i in inedges:
-                idx_i = topo.index(i)
-                b, w = find_edge(self.edges, i, o).parameters()
-
-                data[:,idx] += b + w*data[:,idx_i]
-
-            if nodetype == 'd':
-                data[:,idx] = self._as_dummy(data[:,idx])
-
-        return data
-
-
-    def _as_dummy(self, X):
-        """ Convert continous to balanced binary.
-        """
-        return np.where(X > np.mean(X), 1, 0)
 
     def columns(self):
         """ Column names for the data.
@@ -320,17 +229,18 @@ class CausalSystem(object):
         self.structure = structure
         self.T = T
         self.t = 0
-        self.nobs = nobs 
+        self.n_observations = nobs 
         self.reseed = reseed 
         self.cols = self.structure.columns()
 
         self.data = None
 
+
     def step(self):
         if self.t >= self.T:
             raise ValueError("Ran through all steps")
 
-        tdata = self.structure.yield_data(nobs = self.nobs, reseed = self.reseed)
+        tdata = self.simulate_data()
 
         if self.data is None:
             self.data = pd.DataFrame(tdata)
@@ -352,5 +262,34 @@ class CausalSystem(object):
         return self.data
 
 
+    def simulate_data(self):
+        """ Return a np array with data generated from the graph.
 
+        Args:
+            nobs(int): number of observations in data.
+            reseed(bool): Should the rng be reseeded?
+        """
+#        if self.reseed:
+#            self._reseed()
+
+        topo = list(nx.topological_sort(self.structure.graph))
+        data = np.random.randn(self.n_observations, self.structure.n_variables)
+        
+        for idx, o in enumerate(topo):
+            nodetype = o[0]
+            inedges = [x[0] for x in self.structure.graph.in_edges(o)]
+
+            if len(inedges) == 0:
+                data[:,idx] = np.random.randn(self.n_observations)
+
+            for i in inedges:
+                idx_i = topo.index(i)
+                b, w = find_edge(self.structure.edges, i, o).parameters()
+
+                data[:,idx] += b + w*data[:,idx_i]
+
+            if nodetype == 'd':
+                data[:,idx] = as_balanced_dummy(data[:,idx])
+
+        return data
 
